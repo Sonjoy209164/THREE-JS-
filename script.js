@@ -8,12 +8,26 @@ import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPa
 const scene = new THREE.Scene(); // "Scene" should be capitalized
 //step2
 // Create the camera
+
 const camera = new THREE.PerspectiveCamera(
-    75,
-    window.innerWidth / window.innerHeight,
-    0.1,//near
-    1000//far
+  75,
+  window.innerWidth / window.innerHeight,
+  0.1,
+  1000  // Increase this if needed
 );
+
+
+camera.position.set(-1, 4, 10); // Elevated view
+camera.lookAt(0, 0, -50);      // Look towards the block path
+
+
+const light = new THREE.DirectionalLight(0xffffff, 1);
+light.position.set(5, 10, 5);
+scene.add(light);
+
+scene.add(new THREE.AmbientLight(0xffffff, 0.3)); // Soft fill light
+
+
 
 
 //step 3
@@ -38,7 +52,7 @@ const cube = new THREE.Mesh(geometry, glowMaterial);
 cube.position.x=3
 
 // Add cube to the scene
-scene.add(cube);
+//scene.add(cube);
 
 //another object
 // Create a red cube
@@ -50,7 +64,7 @@ cube1.position.y=2;
 cube1.position.z=1;
 
 // Add cube to the scene
-scene.add(cube1);
+//scene.add(cube1);
 
 
 const geo=new THREE.BoxGeometry();
@@ -59,11 +73,11 @@ const cube2 =new THREE.Mesh(geo,mat);
 cube2.position.x=2;
 
 
-scene.add(cube2);
+//scene.add(cube2);
 
 
 //0.45, 0.2, 2, 32, 1, true
-// Cup outer wall
+// joint outer wall
 const outerGeometry = new THREE.CylinderGeometry(0.45, 0.2, 2, 32, 1, true); // open-ended
 const outerMaterial = new THREE.MeshBasicMaterial({ color: "#556b2f", side: THREE.DoubleSide });
 const outerMesh = new THREE.Mesh(outerGeometry, outerMaterial);
@@ -82,6 +96,17 @@ scene.add(outerMesh2);
 outerMesh2.position.y=-1.2;
 
 
+
+//group them together
+const jointGroup = new THREE.Group();
+
+jointGroup.add(outerMesh);
+jointGroup.add(outerMesh1);
+jointGroup.add(outerMesh2);
+
+jointGroup.rotation.z = Math.PI / 2;
+scene.add(jointGroup);
+
 //adding sun 
 const sunGeometry = new THREE.SphereGeometry(1, 32, 32);
 const sunMaterial = new THREE.MeshBasicMaterial({ color: 0xffd700 }); // golden yellow
@@ -91,7 +116,68 @@ scene.add(sun);
 
 const sunlight = new THREE.DirectionalLight(0xfff3b3, 1.5);
 sunlight.position.set(-5, 5, -10);
-scene.add(sunlight);
+//scene.add(sunlight);
+
+// blocksforgame
+
+const blocks = [];
+const blocksgrp = new THREE.Group();
+for (let i = 0; i < 100; i++) {
+  if(i%4==0){
+      const block = new THREE.Mesh(
+    new THREE.BoxGeometry(1, 0.2, 1),
+    new THREE.MeshStandardMaterial({ color: 0x3333ff })
+   
+  );
+  block.position.z = -i * 2; // space them out
+  //block.rotation.z = Math.PI / 2;
+  //scene.add(block);
+  blocksgrp.add(block);
+  blocks.push(block);
+
+  }
+  else if(i % 4==1){
+      const block = new THREE.Mesh(
+    new THREE.BoxGeometry(1, 0.2, 1),
+    new THREE.MeshStandardMaterial({ color:"#FF4500" })
+  );
+  block.position.z = -i * 2; // space them out
+  blocksgrp.add(block);
+  //scene.add(block);
+  blocks.push(block);
+
+  }
+  else if( i%4==2){  const block = new THREE.Mesh(
+    new THREE.BoxGeometry(1, 0.2, 1),
+    new THREE.MeshStandardMaterial({ color: "#32CD32" })
+  );
+
+
+  block.position.z = -i * 2; // space them out
+  //scene.add(block);
+  blocksgrp.add(block);
+  blocks.push(block);}
+  else if( i%4==3){  const block = new THREE.Mesh(
+    new THREE.BoxGeometry(1, 0.2, 1),
+    new THREE.MeshStandardMaterial({ color: "#FFD700" })
+  );
+  block.position.z = -i * 2; // space them out
+  //scene.add(block);
+  blocksgrp.add(block);
+
+  blocks.push(block);}
+ scene.add(blocksgrp);
+blocksgrp.rotation.y  = -Math.PI / 2;
+}
+// sphereplayer
+
+const sphere = new THREE.Mesh(
+  new THREE.SphereGeometry(0.3, 32, 32),
+  new THREE.MeshStandardMaterial({ color: 0xff0000 })
+);
+sphere.position.set(0, 0.5, 0);
+scene.add(sphere);
+
 // // Glowing object (sphere)
 // const geometry3 = new THREE.SphereGeometry(1, 32, 32);
 // const material3 = new THREE.MeshBasicMaterial({ color: 0xff4500 }); // fiery red
@@ -153,24 +239,123 @@ composer.addPass(bloomPass);
 // Position the camera so we can see the cube
 camera.position.z = 5;
 
+
+
+//game logic
+//Jumping Mechanics
+// On key press (e.g., space), apply upward force
+
+// Use a simple physics loop to simulate gravity and jump arc
+
+// Land on next block or fall
+
+
+let isJumping = false;
+let velocityY = 0.4  ;
+let gravity = -0.01;
+let blockIndex = 0;
+let jumpPower = 0.3;
+
+function updatePlayer() {
+  if (isJumping) {
+    velocityY += gravity;
+    sphere.position.y += velocityY;
+
+    if (sphere.position.y <= 0.5) {
+      sphere.position.y = 0.5;
+      isJumping = false;
+      velocityY = 0;
+
+      // Check if landed on block
+      checkFall();
+    }
+  }
+}
+//  Jump Trigger
+
+document.addEventListener("keydown", (e) => {
+  if (e.code === "Space" && !isJumping) {
+    velocityY = jumpPower;
+    isJumping = true;
+    blockIndex++;
+    sphere.position.x = blockIndex * 2; // Move forward
+  }
+});
+
+
+//  Move Forward
+let currentBlockIndex = 0;
+
+function moveForward() {
+  currentBlockIndex++;
+  sphere.position.z = -currentBlockIndex * 2;
+
+  updateScore(currentBlockIndex);
+}
+
+function checkFall() {
+  const blockZ = -currentBlockIndex * 2;
+  const distance = Math.abs(sphere.position.z - blockZ);
+  if (distance > 0.5) {
+    alert("Game Over! Score: " + currentBlockIndex);
+    // Optionally reset game
+  }
+}
+function updateScore(score) {
+  document.getElementById("scoreBoard").textContent = `Score: ${score}`;
+}
+
+
+
 // Animation loop
-function animate() {
-    requestAnimationFrame(animate);
+// function animate() {
+//     requestAnimationFrame(animate);
 
-    // Optional: rotate the cube
-    cube.rotation.x += 0.01;
-    cube.rotation.y += 0.01;
+//     // Optional: rotate the cube
+//     cube.rotation.x += 0.01;
+//     cube.rotation.y += 0.01;
 
-    cube1.rotation.x +=0.01;
-    cube1.rotation.y +=0.01;
+//     cube1.rotation.x +=0.01;
+//     cube1.rotation.y +=0.01;
 
      
-    cube2.rotation.x +=0.01;
-    cube2.rotation.y +=0.01; 
+//     cube2.rotation.x +=0.01;
+//     cube2.rotation.y +=0.01; 
 
-    composer.render();
+//     // outerMesh.rotation.x +=0.01;
 
-    //renderer.render(scene, camera);
+//     jointGroup.rotation.y +=0.01;
+
+//     composer.render();
+
+//     //renderer.render(scene, camera);
+// }
+function animate() {
+  requestAnimationFrame(animate);
+
+  if (isJumping) {
+    velocityY += gravity;
+    sphere.position.y += velocityY;
+
+    if (sphere.position.y <= 0.5) {
+      sphere.position.y = 0.5;
+      isJumping = false;
+      velocityY = 0;
+
+      // Check fall
+      const expectedZ = -blockIndex * 2;
+     
+    }
+  }
+    // Make the camera follow the sphere
+  camera.position.x = sphere.position.x;
+  camera.position.y = sphere.position.y + 3; // slightly above
+  camera.position.z = sphere.position.z + 6; // slightly behind
+
+  camera.lookAt(sphere.position);
+
+  renderer.render(scene, camera);
 }
+
 
 animate();
